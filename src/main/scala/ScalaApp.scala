@@ -27,7 +27,7 @@ object ScalaApp {
       .option("header", "true")
       .option("inferSchema", "true")
       .schema(schema)
-      .csv("D:\\Solutis\\Solutis\\spark\\estud-spark\\src\\main\\scala\\netflix_titles.csv")
+      .csv("netflix_titles.csv")
 
 //    saveCassandra(data)
 
