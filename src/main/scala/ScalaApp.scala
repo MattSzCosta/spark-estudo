@@ -1,17 +1,12 @@
 
-import org.apache.spark.sql.{DataFrame, Encoders, Row, SaveMode, SparkSession}
-import org.apache.spark.sql.cassandra._
-import com.datastax.spark.connector._
-import org.apache.spark.sql
-import org.apache.spark.sql.types.StructType
-import org.elasticsearch.spark.sql._
+  import org.apache.spark.sql.{DataFrame, Dataset, Encoders, Row, SaveMode, SparkSession}
+  import org.apache.spark.sql.cassandra._
+  import org.apache.spark.sql.types.StructType
+  import org.elasticsearch.spark.sql._
 
-object ScalaApp {
-
-
-  def main(args: Array[String]): Unit = {
-    val spark = SparkSession
-      .builder
+  object ScalaApp {
+    val spark: SparkSession = SparkSession
+      .builder()
       .master("local")
       .appName("Hello Spark App")
       .config("spark.cassandra.connection.port","9042")
@@ -21,37 +16,49 @@ object ScalaApp {
       .config("spark.es.nodes.wan.only", "true")
       .getOrCreate()
 
-    val schema = Encoders.product[NetflixTitle].schema
+    import spark.implicits._
 
-    val data= spark.read
-      .option("header", "true")
-      .option("inferSchema", "true")
-      .schema(schema)
-      .csv("netflix_titles.csv")
+    def main(args: Array[String]): Unit = {
 
-//    saveCassandra(data)
+      val schema =  Encoders.product[NetflixTitle].schema
+      val data = spark.read
+        .option("header", "true")
+        .option("inferSchema", "true")
+        .schema(schema)
+        .csv("netflix_titles.csv")
+        .as[NetflixTitle]
 
-    saveEs(data)
-//
-//    val esData = getEsData(spark, schema)
-//    esData.show(10)
+//      data.filter($"release_year" > 100L)
+//      data.filter(it => it.release_year > 100L)
+
+
+      saveCassandra(data)
+
+      saveEs(data.toDF())
+
+      val esData = getEsData(spark, schema)
+      esData.show(10)
+
+
+      Thread.sleep(1000000)
+    }
+
+    def saveCassandra(df: Dataset[NetflixTitle]): Unit = {
+      df
+        .write
+        .cassandraFormat(table = "netflix", keyspace = "test")
+        .mode(SaveMode.Append)
+        .save()
+    }
+
+      def saveEs(df: DataFrame): Unit = {
+        df.saveToEs("netflix")
+      }
+
+    def getEsData(spark: SparkSession, schema: StructType): Dataset[NetflixTitle] = {
+      spark.read.format("es")
+        .schema(schema)
+        .load("netflix")
+        .as[NetflixTitle]
+    }
   }
-
-  def saveCassandra(df: DataFrame): Unit = {
-    df
-      .write
-      .cassandraFormat(table = "netflix", keyspace = "test")
-      .mode(SaveMode.Append)
-      .save()
-  }
-
-  def saveEs(df: DataFrame): Unit = {
-    df.saveToEs("netflix")
-  }
-
-  def getEsData(spark: SparkSession, schema: StructType):DataFrame = {
-    spark.read.format("es")
-      .schema(schema)
-      .load("netflix")
-  }
-}
