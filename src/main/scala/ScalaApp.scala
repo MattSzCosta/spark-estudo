@@ -25,7 +25,7 @@
         .option("header", "true")
         .option("inferSchema", "true")
         .schema(schema)
-        .csv("netflix_titles.csv")
+        .csv(ClassLoader.getSystemResource("netflix_titles.csv").getFile)
         .as[NetflixTitle]
 
 //      data.filter($"release_year" > 100L)
